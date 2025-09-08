@@ -90,6 +90,12 @@ self.addEventListener('push', event => {
     badge: '/DSi.png',
     tag: 'job-notification',
     requireInteraction: true,
+    silent: false,
+    vibrate: [200, 100, 200],
+    data: {
+      url: '/',
+      timestamp: Date.now()
+    },
     actions: [
       {
         action: 'view',
