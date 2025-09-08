@@ -1,11 +1,11 @@
 const CACHE_NAME = 'dsi-placement-v1.0.0';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/script.js',
-  '/DSi.png',
-  '/manifest.json',
+  './',
+  './index.html',
+  './styles.css',
+  './script.js',
+  './DSi.png',
+  './manifest.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];
@@ -73,7 +73,7 @@ self.addEventListener('fetch', event => {
       .catch(() => {
         // If both cache and network fail, show offline page
         if (event.request.destination === 'document') {
-          return caches.match('/index.html');
+          return caches.match('./index.html');
         }
       })
   );
@@ -86,21 +86,21 @@ self.addEventListener('push', event => {
   let notificationData = {
     title: 'DSI Placement Portal',
     body: 'New job opportunity available!',
-    icon: '/DSi.png',
-    badge: '/DSi.png',
+    icon: './DSi.png',
+    badge: './DSi.png',
     tag: 'job-notification',
     requireInteraction: true,
     silent: false,
     vibrate: [200, 100, 200],
     data: {
-      url: '/',
+      url: './',
       timestamp: Date.now()
     },
     actions: [
       {
         action: 'view',
         title: 'View Jobs',
-        icon: '/DSi.png'
+        icon: './DSi.png'
       },
       {
         action: 'dismiss',
@@ -123,7 +123,7 @@ self.addEventListener('push', event => {
   );
 });
 
-// Notification click event
+// Handle notification click for iOS
 self.addEventListener('notificationclick', event => {
   console.log('Notification clicked:', event);
   
@@ -144,11 +144,12 @@ self.addEventListener('notificationclick', event => {
       }
       // If app is not open, open it
       if (clients.openWindow) {
-        return clients.openWindow('/');
+        return clients.openWindow('./');
       }
     })
   );
 });
+
 
 // Background sync for offline actions
 self.addEventListener('sync', event => {
