@@ -3719,20 +3719,47 @@ async function setupPushNotifications() {
         try {
             const registration = await navigator.serviceWorker.ready;
             
-            // Subscribe to push notifications
-            const subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array('BEl62iUYgUivxIkv69yViEuiBIa40HIcFyVjZvKUKMeaF5Q5F9LGHo9YvuoON0qmxR1y8HyT3uJZikOqStn6yI8')
-            });
+            // Check if already subscribed
+            let subscription = await registration.pushManager.getSubscription();
+            
+            if (!subscription) {
+                // Create a new subscription with proper VAPID key
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array('BEl62iUYgUivxIkv69yViEuiBIa40HIcFyVjZvKUKMeaF5Q5F9LGHo9YvuoON0qmxR1y8HyT3uJZikOqStn6yI8')
+                });
+            }
             
             console.log('Push subscription:', subscription);
             
             // Store subscription for server-side notifications
             localStorage.setItem('pushSubscription', JSON.stringify(subscription));
             
+            // Send subscription to server (you'll need to implement this endpoint)
+            await sendSubscriptionToServer(subscription);
+            
         } catch (error) {
             console.error('Error setting up push notifications:', error);
         }
+    }
+}
+
+// Send subscription to server
+async function sendSubscriptionToServer(subscription) {
+    try {
+        // This would typically send to your backend server
+        // For now, we'll store it locally and use it for local notifications
+        console.log('Subscription ready for server:', subscription);
+        
+        // You can implement this to send to your Firebase or other backend
+        // await fetch('/api/subscribe', {
+        //     method: 'POST',
+        //     headers: { 'Content-Type': 'application/json' },
+        //     body: JSON.stringify(subscription)
+        // });
+        
+    } catch (error) {
+        console.error('Error sending subscription to server:', error);
     }
 }
 
@@ -3800,20 +3827,114 @@ function hideUpdateBanner() {
 function sendTestNotification() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then(registration => {
-            registration.showNotification('Test Notification', {
-                body: 'This is a test notification from DSI Placement Portal',
+            registration.showNotification('🎉 DSI Placement Portal', {
+                body: 'New job opportunity available! Check out the latest openings.',
                 icon: '/DSi.png',
                 badge: '/DSi.png',
-                tag: 'test-notification',
+                tag: 'job-notification',
                 requireInteraction: true,
+                silent: false,
+                vibrate: [200, 100, 200],
+                data: {
+                    url: '/',
+                    timestamp: Date.now()
+                },
                 actions: [
                     {
                         action: 'view',
-                        title: 'View',
+                        title: 'View Jobs',
+                        icon: '/DSi.png'
+                    },
+                    {
+                        action: 'dismiss',
+                        title: 'Dismiss'
+                    }
+                ]
+            });
+        });
+    }
+}
+
+// Send job notification
+function sendJobNotification(jobTitle, companyName) {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(registration => {
+            registration.showNotification('🚀 New Job Posted!', {
+                body: `${jobTitle} at ${companyName} - Apply now!`,
+                icon: '/DSi.png',
+                badge: '/DSi.png',
+                tag: 'new-job',
+                requireInteraction: true,
+                silent: false,
+                vibrate: [200, 100, 200],
+                data: {
+                    url: '/',
+                    jobTitle: jobTitle,
+                    company: companyName,
+                    timestamp: Date.now()
+                },
+                actions: [
+                    {
+                        action: 'apply',
+                        title: 'Apply Now',
+                        icon: '/DSi.png'
+                    },
+                    {
+                        action: 'view',
+                        title: 'View Details',
                         icon: '/DSi.png'
                     }
                 ]
             });
         });
     }
+}
+
+// Send deadline reminder
+function sendDeadlineReminder(jobTitle, deadline) {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(registration => {
+            registration.showNotification('⏰ Application Deadline Soon!', {
+                body: `${jobTitle} - Deadline: ${deadline}`,
+                icon: '/DSi.png',
+                badge: '/DSi.png',
+                tag: 'deadline-reminder',
+                requireInteraction: true,
+                silent: false,
+                vibrate: [300, 100, 300],
+                data: {
+                    url: '/',
+                    jobTitle: jobTitle,
+                    deadline: deadline,
+                    timestamp: Date.now()
+                },
+                actions: [
+                    {
+                        action: 'apply',
+                        title: 'Apply Now',
+                        icon: '/DSi.png'
+                    }
+                ]
+            });
+        });
+    }
+}
+
+// Check notification permission and show status
+function checkNotificationStatus() {
+    if ('Notification' in window) {
+        const permission = Notification.permission;
+        console.log('Notification permission:', permission);
+        
+        if (permission === 'granted') {
+            showNotification('✅ Notifications enabled! You will receive job updates.', 'success');
+        } else if (permission === 'denied') {
+            showNotification('❌ Notifications blocked. Please enable them in browser settings.', 'warning');
+        } else {
+            showNotification('🔔 Click to enable notifications for job updates.', 'info');
+        }
+        
+        return permission;
+    }
+    return 'not-supported';
 }
