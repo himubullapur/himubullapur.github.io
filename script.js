@@ -136,103 +136,45 @@ async function loadDataFromFirebase() {
     if (!isFirebaseReady) await waitForFirebase();
     
     try {
-        const dataRef = window.firebaseRef(window.firebaseDatabase, 'placementPortalData');
-        const snapshot = await window.firebaseGet(dataRef);
+        // FORCE EMPTY STATE - NO FIREBASE DATA LOADING (except notifications)
+        console.log('FORCING EMPTY STATE - NO FIREBASE DATA LOADING');
         
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            
-            // Load saved data
-            AppState.jobs = data.jobs !== undefined ? data.jobs : [];
-            AppState.shortlistedData = data.shortlistedData || [];
-            AppState.jobShortlisted = data.jobShortlisted || {};
-            
-            // Restore notifications with callback functions
-            AppState.notifications = (data.notifications || []).map(notification => {
-                const restoredNotification = {
-                    id: notification.id,
-                    title: notification.title,
-                    message: notification.message,
-                    type: notification.type,
-                    timestamp: notification.timestamp || Date.now(),
-                    time: notification.time || new Date(notification.timestamp || Date.now()).toISOString(),
-                    read: notification.read || false
-                };
-                
-                // Restore action with callback function
-                if (notification.action && notification.action.text) {
-                    restoredNotification.action = {
-                        text: notification.action.text,
-                        link: notification.action.link || null,
-                        callback: () => {
-                            // If there's a link, open it
-                            if (notification.action.link) {
-                                window.open(notification.action.link, '_blank');
-                            } else {
-                                // Determine the appropriate callback based on notification content
-                                if (notification.action.text.toLowerCase().includes('shortlisted') || 
-                                    notification.title.toLowerCase().includes('shortlisted') ||
-                                    notification.message.toLowerCase().includes('shortlisted')) {
-                                    showShortlistedView();
-                                } else if (notification.action.text.toLowerCase().includes('view details') ||
-                                          notification.action.text.toLowerCase().includes('details')) {
-                                    // Find the job by title or message to restore callback
-                                    const job = AppState.jobs.find(j => 
-                                        notification.title.includes(j.company) || 
-                                        notification.message.includes(j.company) ||
-                                        notification.title.includes(j.title) ||
-                                        notification.message.includes(j.title)
-                                    );
-                                    if (job) {
-                                        showJobDetail(job.id);
-                                    } else {
-                                        showNotification('Job details not found', 'error');
-                                    }
-                                } else {
-                                    // Default action for other notifications
-                                    showNotification('Action executed', 'info');
-                                }
-                            }
-                        }
-                    };
-                }
-                
-                return restoredNotification;
-            });
-            
-            AppState.admins = data.admins || [];
-            
-            console.log('✅ Data loaded from Firebase - Jobs count:', AppState.jobs.length);
-            showNotification('Data loaded from cloud!', 'success');
-            
-            // Check and update job statuses based on deadlines
-            checkAndUpdateJobStatuses();
-        } else {
-            // First time load - start with empty data
-            AppState.jobs = [];
-            AppState.shortlistedData = [];
-            AppState.jobShortlisted = {};
-            AppState.notifications = [];
-            AppState.admins = [];
-            
-            // Save initial empty data
-            await saveDataToFirebase({
-                jobs: AppState.jobs,
-                shortlistedData: AppState.shortlistedData,
-                jobShortlisted: AppState.jobShortlisted,
-                notifications: AppState.notifications,
-                admins: AppState.admins
-            });
-            console.log('✅ First time load - empty data saved to Firebase');
+        // Check if there are existing notifications in localStorage to preserve
+        const savedData = localStorage.getItem('placementPortalData');
+        let existingNotifications = [];
+        
+        if (savedData) {
+            try {
+                const data = JSON.parse(savedData);
+                existingNotifications = data.notifications || [];
+            } catch (e) {
+                console.log('Could not parse saved data');
+            }
         }
+        
+        // Always start with empty data (but preserve notifications)
+        AppState.jobs = [];
+        AppState.shortlistedData = [];
+        AppState.jobShortlisted = {};
+        AppState.notifications = existingNotifications; // Preserve existing notifications
+        AppState.admins = [];
+        
+        // Save empty state to Firebase (with preserved notifications)
+        await saveDataToFirebase({
+            jobs: AppState.jobs,
+            shortlistedData: AppState.shortlistedData,
+            jobShortlisted: AppState.jobShortlisted,
+            notifications: AppState.notifications,
+            admins: AppState.admins
+        });
         
         AppState.filteredJobs = [...AppState.jobs];
         AppState.filteredShortlistedData = [...AppState.shortlistedData];
         
+        console.log('✅ Empty state forced and saved to Firebase (notifications preserved)');
+        
     } catch (error) {
-        console.error('❌ Error loading from Firebase:', error);
-        console.error('Error details:', error.message);
-        showNotification('Using offline mode - loading from local storage', 'warning');
+        console.error('❌ Error in loadDataFromFirebase:', error);
         // Fallback to localStorage
         loadDataFromStorage();
     }
@@ -343,8 +285,7 @@ const AppState = {
     admins: [] // Store admin users
 };
 
-// Sample Data - Empty array for clean start
-const sampleJobs = [];
+// Sample Data - Empty array for clean start (removed test data)
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
@@ -424,37 +365,41 @@ async function saveDataToStorage() {
 
 function loadDataFromStorage() {
     try {
+        // FORCE EMPTY STATE - NO DATA LOADING (except notifications)
+        console.log('FORCING EMPTY STATE - NO DATA LOADING');
+        
+        // Always start with empty data (but preserve notifications if they exist)
         const savedData = localStorage.getItem('placementPortalData');
+        let existingNotifications = [];
+        
         if (savedData) {
-            const data = JSON.parse(savedData);
-            
-            // Load saved data (even if empty array - this preserves deletions)
-            AppState.jobs = data.jobs !== undefined ? data.jobs : [...sampleJobs];
-            AppState.shortlistedData = data.shortlistedData || [];
-            AppState.jobShortlisted = data.jobShortlisted || {};
-            AppState.notifications = data.notifications || [];
-            AppState.admins = data.admins || [];
-            
-            console.log('Data loaded from localStorage - Jobs count:', AppState.jobs.length);
-            console.log('Loaded jobs:', AppState.jobs);
-        } else {
-            // First time load - start with empty data
-            AppState.jobs = [];
-            AppState.shortlistedData = [];
-            AppState.jobShortlisted = {};
-            AppState.notifications = [];
-            AppState.admins = [];
-            
-            // Save initial empty data
-            saveDataToStorage();
-            console.log('First time load - empty data saved');
+            try {
+                const data = JSON.parse(savedData);
+                existingNotifications = data.notifications || [];
+            } catch (e) {
+                console.log('Could not parse saved data');
+            }
         }
         
-        AppState.filteredJobs = [...AppState.jobs];
-        AppState.filteredShortlistedData = [...AppState.shortlistedData];
+        AppState.jobs = [];
+        AppState.shortlistedData = [];
+        AppState.jobShortlisted = {};
+        AppState.notifications = existingNotifications; // Preserve existing notifications
+        AppState.admins = [];
+        AppState.filteredJobs = [];
+        AppState.filteredShortlistedData = [];
+        
+        // Clear any existing localStorage
+        localStorage.removeItem('placementPortalData');
+        localStorage.removeItem('pushSubscription');
+        localStorage.removeItem('lastNotificationCheck');
+        
+        // Save empty state with preserved notifications
+        saveDataToStorage();
+        console.log('Empty state forced and saved (notifications preserved)');
         
     } catch (error) {
-        console.error('Error loading from localStorage:', error);
+        console.error('Error in loadDataFromStorage:', error);
         // Fallback to empty data
         AppState.jobs = [];
         AppState.filteredJobs = [];
@@ -478,40 +423,199 @@ function debugLocalStorage() {
     }
 }
 
-// Make debug function available globally for testing
-window.debugLocalStorage = debugLocalStorage;
-
-// Debug function to create a test job
-function createTestJob() {
-    const testJob = {
-        id: 1,
-        company: "Test Company",
-        title: "Test Position",
-        status: "Open",
-        deadline: "2024-12-31",
-        description: "This is a test job for debugging purposes.",
-        salary: "5-7 LPA",
-        location: "Test City",
-        eligibility: "B.Tech in any field",
-        batches: "2024, 2025",
-        branches: "CSE, IT, ECE",
-        selectionProcess: "Written test followed by interview",
-        formLink: "https://forms.google.com/test",
-        applicants: []
-    };
+// Clear all test data from localStorage
+function clearTestData() {
+    // Clear all localStorage data
+    localStorage.removeItem('placementPortalData');
+    localStorage.removeItem('pushSubscription');
+    localStorage.removeItem('lastNotificationCheck');
     
-    AppState.jobs.push(testJob);
-    AppState.filteredJobs = [...AppState.jobs];
-    saveDataToStorage();
-    loadAdminJobList();
+    console.log('All test data cleared from localStorage');
+    
+    // Reset app state completely
+    AppState.jobs = [];
+    AppState.filteredJobs = [];
+    AppState.shortlistedData = [];
+    AppState.filteredShortlistedData = [];
+    AppState.jobShortlisted = {};
+    AppState.notifications = [];
+    AppState.admins = [];
+    AppState.currentCompanyData = [];
+    AppState.currentCompanyFullData = null;
+    
+    // Clear any existing UI
+    const companiesGrid = document.getElementById('companies-grid');
+    if (companiesGrid) {
+        companiesGrid.innerHTML = `
+            <div class="no-companies-message">
+                <div class="no-data-icon">
+                    <i class="fas fa-building"></i>
+                </div>
+                <h3>No Companies with Shortlisted Candidates</h3>
+                <p>Companies will appear here once the admin uploads shortlisted data.</p>
+            </div>
+        `;
+    }
+    
+    // Update UI immediately
     loadJobs();
+    loadAdminJobList();
     
-    console.log('Test job created:', testJob);
-    showNotification('Test job created successfully!', 'success');
+    showNotification('All test data cleared successfully!', 'success');
+    
+    // Reload the page to ensure clean state
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
 }
 
-// Make test function available globally
-window.createTestJob = createTestJob;
+// Clear only shortlisted data
+async function clearShortlistedData() {
+    try {
+        showNotification('Clearing ALL dummy data from database and cache...', 'info');
+        
+        // Clear from Firebase database - multiple paths
+        if (typeof database !== 'undefined') {
+            // Clear all possible Firebase paths
+            const paths = [
+                'jobs',
+                'shortlistedData', 
+                'jobShortlisted',
+                'placementPortalData',
+                'shortlisted',
+                'candidates',
+                'companies'
+            ];
+            
+            for (const path of paths) {
+                try {
+                    const refPath = ref(database, path);
+                    await set(refPath, {});
+                    console.log(`Cleared Firebase path: ${path}`);
+                } catch (error) {
+                    console.log(`Could not clear path ${path}:`, error);
+                }
+            }
+        }
+        
+        // Clear all data from AppState
+        AppState.shortlistedData = [];
+        AppState.filteredShortlistedData = [];
+        AppState.jobShortlisted = {};
+        AppState.currentCompanyData = [];
+        AppState.currentCompanyFullData = null;
+        AppState.jobs = [];
+        AppState.filteredJobs = [];
+        AppState.notifications = [];
+        AppState.admins = [];
+        
+        // Clear ALL localStorage
+        localStorage.clear();
+        
+        // Clear sessionStorage
+        sessionStorage.clear();
+        
+        // Clear UI immediately and force empty state
+        const companiesGrid = document.getElementById('companies-grid');
+        if (companiesGrid) {
+            companiesGrid.innerHTML = `
+                <div class="no-companies-message">
+                    <div class="no-data-icon">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <h3>No Companies with Shortlisted Candidates</h3>
+                    <p>Companies will appear here once the admin uploads shortlisted data.</p>
+                </div>
+            `;
+        }
+        
+        // Clear all UI elements
+        const shortlistedDataSection = document.getElementById('shortlisted-data-section');
+        if (shortlistedDataSection) {
+            shortlistedDataSection.style.display = 'none';
+        }
+        
+        const noShortlistedData = document.getElementById('no-shortlisted-data');
+        if (noShortlistedData) {
+            noShortlistedData.style.display = 'block';
+        }
+        
+        const jobListings = document.getElementById('job-listings');
+        if (jobListings) {
+            jobListings.innerHTML = '';
+        }
+        
+        // Disable Firebase listeners temporarily
+        if (window.firebaseListeners) {
+            Object.values(window.firebaseListeners).forEach(unsubscribe => {
+                if (typeof unsubscribe === 'function') {
+                    unsubscribe();
+                }
+            });
+            window.firebaseListeners = {};
+        }
+        
+        showNotification('ALL dummy data cleared! Reloading page...', 'success');
+        
+        // Force reload with cache busting
+        setTimeout(() => {
+            window.location.href = window.location.href + '?clear=' + Date.now();
+        }, 1500);
+        
+    } catch (error) {
+        console.error('Error clearing data:', error);
+        showNotification('Error clearing data: ' + error.message, 'error');
+    }
+}
+
+// Debug function to show current app state
+function debugAppState() {
+    console.log('=== CURRENT APP STATE ===');
+    console.log('Jobs:', AppState.jobs);
+    console.log('Shortlisted Data:', AppState.shortlistedData);
+    console.log('Job Shortlisted:', AppState.jobShortlisted);
+    console.log('Filtered Shortlisted Data:', AppState.filteredShortlistedData);
+    console.log('========================');
+}
+
+// Debug function to check Firebase database
+async function debugFirebaseData() {
+    try {
+        if (typeof database !== 'undefined') {
+            console.log('=== FIREBASE DATABASE DATA ===');
+            
+            // Check jobs
+            const jobsRef = ref(database, 'jobs');
+            const jobsSnapshot = await get(jobsRef);
+            console.log('Firebase Jobs:', jobsSnapshot.val());
+            
+            // Check shortlisted data
+            const shortlistedRef = ref(database, 'shortlistedData');
+            const shortlistedSnapshot = await get(shortlistedRef);
+            console.log('Firebase Shortlisted Data:', shortlistedSnapshot.val());
+            
+            // Check job shortlisted data
+            const jobShortlistedRef = ref(database, 'jobShortlisted');
+            const jobShortlistedSnapshot = await get(jobShortlistedRef);
+            console.log('Firebase Job Shortlisted:', jobShortlistedSnapshot.val());
+            
+            console.log('==============================');
+        } else {
+            console.log('Firebase database not available');
+        }
+    } catch (error) {
+        console.error('Error checking Firebase data:', error);
+    }
+}
+
+// Make debug functions available globally for testing
+window.debugLocalStorage = debugLocalStorage;
+window.debugAppState = debugAppState;
+window.debugFirebaseData = debugFirebaseData;
+window.clearTestData = clearTestData;
+window.clearShortlistedData = clearShortlistedData;
+
+// Test job creation function removed to prevent dummy data
 
 // Navigation Functions
 function showStudentDashboard() {
@@ -999,8 +1103,11 @@ function handleJobSubmit(event) {
             }
         });
         
-        // Send push notification to all users
+        // Send push notification to all users immediately
         sendNewJobNotification(jobData.title, jobData.company);
+        
+        // Update UI immediately without refresh
+        updateUIAfterJobAdd(newJob);
         
         showNotification('Job added successfully!', 'success');
     }
@@ -2254,42 +2361,11 @@ function closeCompanyShortlistedModal() {
 function loadNotifications() {
     const notificationsList = document.getElementById('notifications-list');
     
-    if (AppState.notifications.length === 0) {
-        // Add sample notifications
-        addNotification({
-            type: 'info',
-            title: 'Welcome to DSI Placement Portal',
-            message: 'Check this section regularly for important updates about placements and shortlisted candidates.',
-            time: new Date().toISOString()
-        });
-        
-        addNotification({
-            type: 'success',
-            title: 'New Job Opening: Software Engineer',
-            message: 'TechCorp is hiring for Software Engineer position. Application deadline: 15 Dec 2024, 11:59 PM',
-            time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-            action: {
-                text: 'View Details',
-                callback: () => showStudentDashboard()
-            }
-        });
-        
-        addNotification({
-            type: 'success',
-            title: 'Shortlist Updated!',
-            message: '25 candidates have been shortlisted for the Software Engineer position at TechCorp.',
-            time: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-            action: {
-                text: 'View Shortlist',
-                callback: () => showShortlistedView()
-            }
-        });
-    }
-    
+    // NO AUTOMATIC SAMPLE NOTIFICATIONS - Only show real notifications
     displayNotifications();
 }
 
-function addNotification(notification) {
+async function addNotification(notification) {
     const newNotification = {
         id: Date.now(),
         type: notification.type || 'info',
@@ -2309,7 +2385,24 @@ function addNotification(notification) {
         AppState.notifications = AppState.notifications.slice(0, 10);
     }
     
-    saveDataToStorage(); // Save to localStorage
+    try {
+        // Save to both localStorage and Firebase
+        saveDataToStorage(); // Save to localStorage
+        
+        // Also save to Firebase to ensure persistence
+        if (typeof database !== 'undefined') {
+            await saveDataToFirebase({
+                jobs: AppState.jobs,
+                shortlistedData: AppState.shortlistedData,
+                jobShortlisted: AppState.jobShortlisted,
+                notifications: AppState.notifications,
+                admins: AppState.admins
+            });
+        }
+    } catch (error) {
+        console.error('Error saving notification:', error);
+    }
+    
     displayNotifications();
 }
 
@@ -2412,18 +2505,54 @@ function getTimeAgo(timestamp) {
     return `${diffInDays} day${diffInDays !== 1 ? 's' : ''} ago`;
 }
 
-function markNotificationRead(notificationId) {
+async function markNotificationRead(notificationId) {
     const notification = AppState.notifications.find(n => n.id === notificationId);
     if (notification) {
         notification.read = true;
+        
+        try {
+            // Save to both localStorage and Firebase
+            saveDataToStorage();
+            
+            if (typeof database !== 'undefined') {
+                await saveDataToFirebase({
+                    jobs: AppState.jobs,
+                    shortlistedData: AppState.shortlistedData,
+                    jobShortlisted: AppState.jobShortlisted,
+                    notifications: AppState.notifications,
+                    admins: AppState.admins
+                });
+            }
+        } catch (error) {
+            console.error('Error saving notification read status:', error);
+        }
+        
         displayNotifications();
     }
 }
 
-function markAllNotificationsRead() {
+async function markAllNotificationsRead() {
     AppState.notifications.forEach(notification => {
         notification.read = true;
     });
+    
+    try {
+        // Save to both localStorage and Firebase
+        saveDataToStorage();
+        
+        if (typeof database !== 'undefined') {
+            await saveDataToFirebase({
+                jobs: AppState.jobs,
+                shortlistedData: AppState.shortlistedData,
+                jobShortlisted: AppState.jobShortlisted,
+                notifications: AppState.notifications,
+                admins: AppState.admins
+            });
+        }
+    } catch (error) {
+        console.error('Error saving notification read status:', error);
+    }
+    
     displayNotifications();
     showNotification('All notifications marked as read', 'success');
 }
@@ -2723,6 +2852,10 @@ function saveJobShortlistData() {
         
         // Show success
         showNotification(`Successfully saved ${AppState.jobShortlisted[jobId].length - 1} shortlisted candidates!`, 'success');
+        
+        // Update UI immediately
+        loadShortlistedCandidatesView();
+        loadAdminJobList();
         
         // Close modal
         closeJobShortlistModal();
@@ -3196,7 +3329,7 @@ function handleEditNotificationSubmit(event) {
     displayNotifications(); // Update student view
 }
 
-function deleteNotification(notificationId) {
+async function deleteNotification(notificationId) {
     if (!confirm('Are you sure you want to delete this notification? This action cannot be undone.')) {
         return;
     }
@@ -3209,10 +3342,27 @@ function deleteNotification(notificationId) {
     
     AppState.notifications.splice(notificationIndex, 1);
     
-    // Save to storage
-    saveDataToStorage();
-    
-    showNotification('Notification deleted successfully!', 'success');
+    try {
+        // Save to both localStorage and Firebase
+        saveDataToStorage();
+        
+        // Also save to Firebase to ensure persistence
+        if (typeof database !== 'undefined') {
+            await saveDataToFirebase({
+                jobs: AppState.jobs,
+                shortlistedData: AppState.shortlistedData,
+                jobShortlisted: AppState.jobShortlisted,
+                notifications: AppState.notifications,
+                admins: AppState.admins
+            });
+        }
+        
+        showNotification('Notification deleted successfully!', 'success');
+        
+    } catch (error) {
+        console.error('Error saving notification deletion:', error);
+        showNotification('Error saving deletion. Please try again.', 'error');
+    }
     
     loadAdminNotifications();
     loadAllNotifications();
@@ -3881,87 +4031,57 @@ async function checkForNewContent(lastCheck) {
 function setupImmediateNotifications() {
     // Check if notifications are enabled and send a welcome notification
     if (Notification.permission === 'granted') {
-        setTimeout(() => {
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.ready.then(registration => {
-                    registration.showNotification('🎉 Welcome to DSI Placement Portal!', {
-                        body: 'You will now receive notifications about new job opportunities and updates.',
-                        icon: './DSi.png',
-                        badge: './DSi.png',
-                        tag: 'welcome-notification',
-                        requireInteraction: true,
-                        silent: false,
-                        vibrate: [200, 100, 200],
-                        data: {
-                            url: './',
-                            timestamp: Date.now(),
-                            type: 'welcome'
+        // Send welcome notification immediately
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification('🎉 Welcome to DSI Placement Portal!', {
+                    body: 'You will now receive notifications about new job opportunities and updates.',
+                    icon: './DSi.png',
+                    badge: './DSi.png',
+                    tag: 'welcome-notification',
+                    requireInteraction: true,
+                    silent: false,
+                    vibrate: [200, 100, 200],
+                    data: {
+                        url: './',
+                        timestamp: Date.now(),
+                        type: 'welcome'
+                    },
+                    actions: [
+                        {
+                            action: 'view',
+                            title: 'View Jobs',
+                            icon: './DSi.png'
                         },
-                        actions: [
-                            {
-                                action: 'view',
-                                title: 'View Jobs',
-                                icon: './DSi.png'
-                            },
-                            {
-                                action: 'dismiss',
-                                title: 'Dismiss'
-                            }
-                        ]
-                    });
+                        {
+                            action: 'dismiss',
+                            title: 'Dismiss'
+                        }
+                    ]
                 });
-            }
-        }, 2000); // Wait 2 seconds after page load
+            });
+        }
     }
     
-    // Set up periodic notifications every 2 minutes for testing
-    setInterval(() => {
-        if (Notification.permission === 'granted') {
-            sendPeriodicNotification();
-        }
-    }, 120000); // Every 2 minutes
+    // Periodic notifications removed - only send when needed
 }
 
-// Send periodic notification for testing
-function sendPeriodicNotification() {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then(registration => {
-            const messages = [
-                'New job opportunities are available! Check them out now.',
-                'Don\'t miss out on the latest job openings!',
-                'Your dream job might be waiting for you!',
-                'Check out the newest job postings!',
-                'Stay updated with the latest opportunities!'
-            ];
-            
-            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-            
-            registration.showNotification('🔔 DSI Placement Portal', {
-                body: randomMessage,
-                icon: './DSi.png',
-                badge: './DSi.png',
-                tag: 'periodic-notification',
-                requireInteraction: true,
-                silent: false,
-                vibrate: [200, 100, 200],
-                data: {
-                    url: './',
-                    timestamp: Date.now(),
-                    type: 'periodic'
-                },
-                actions: [
-                    {
-                        action: 'view',
-                        title: 'View Jobs',
-                        icon: './DSi.png'
-                    },
-                    {
-                        action: 'dismiss',
-                        title: 'Dismiss'
-                    }
-                ]
-            });
-        });
+// Periodic notification function removed - notifications only sent when needed
+
+// Update UI immediately after job addition
+function updateUIAfterJobAdd(newJob) {
+    // Update job cards immediately
+    loadJobs();
+    
+    // Update admin job list immediately
+    loadAdminJobList();
+    
+    // Update shortlisted candidates view if needed
+    loadShortlistedCandidatesView();
+    
+    // Trigger any real-time listeners
+    if (typeof updateRealtimeListeners === 'function') {
+        updateRealtimeListeners();
     }
 }
 
