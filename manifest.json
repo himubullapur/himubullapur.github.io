@@ -1,0 +1,63 @@
+{
+  "name": "DSI Placement Portal",
+  "short_name": "DSI Jobs",
+  "description": "Dayananda Sagar Institutions Placement Portal - Find and apply for job opportunities",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ff6f00",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["education", "business", "productivity"],
+  "icons": [
+    {
+      "src": "DSi.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "DSi.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "DSi.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "View Jobs",
+      "short_name": "Jobs",
+      "description": "Browse available job opportunities",
+      "url": "/#student-dashboard",
+      "icons": [
+        {
+          "src": "DSi.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Shortlisted",
+      "short_name": "Shortlisted",
+      "description": "Check shortlisted candidates",
+      "url": "/#shortlisted-view",
+      "icons": [
+        {
+          "src": "DSi.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

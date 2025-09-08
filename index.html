@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dayananda Sagar Institutions - Placement Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ff6f00">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="DSI Jobs">
+    <link rel="apple-touch-icon" href="DSi.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="DSi.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="DSi.png">
+    
+    <!-- Firebase Configuration (Embedded) -->
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCvROxPAC819zr38EVz-wTaaBDTQy4zsY0",
+            authDomain: "placement-dept-reg.firebaseapp.com",
+            databaseURL: "https://placement-dept-reg-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "placement-dept-reg",
+            storageBucket: "placement-dept-reg.firebasestorage.app",
+            messagingSenderId: "10051102959",
+            appId: "1:10051102959:web:80729b82eed0a24c3a131a",
+            measurementId: "G-S7X01S14DL"
+        };
+        
+        // Make config available globally
+        window.firebaseConfig = firebaseConfig;
+    </script>
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, get, onValue, push, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        
+        // Initialize Firebase with embedded config
+        const app = initializeApp(window.firebaseConfig);
+        const database = getDatabase(app);
+        
+        // Make Firebase functions available globally
+        window.firebaseDatabase = database;
+        window.firebaseRef = ref;
+        window.firebaseSet = set;
+        window.firebaseGet = get;
+        window.firebaseOnValue = onValue;
+        window.firebasePush = push;
+        window.firebaseRemove = remove;
+        
+        console.log('Firebase initialized successfully');
+    </script>
+    
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="logo">
+                    <img src="DSi.png" alt="Dayananda Sagar Institutions" class="logo-image">
+                    <div class="logo-text">
+                        <span class="logo-title">Dayananda Sagar Institutions</span>
+                        <span class="logo-subtitle">Placement Portal</span>
+                    </div>
+                </div>
+                <div class="nav-menu" id="nav-menu">
+                    <a href="#" onclick="showStudentDashboard()" class="nav-link active" id="student-nav">Student Portal</a>
+                    <a href="#" onclick="showShortlistedView()" class="nav-link" id="shortlisted-nav">Shortlisted</a>
+                    <a href="#" onclick="showAdminLogin()" class="nav-link" id="admin-nav">Admin Panel</a>
+                </div>
+                <button class="mobile-menu-toggle" id="mobile-menu-toggle" onclick="toggleMobileMenu()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <div class="nav-actions">
+                    <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <div class="connection-status">
+                        <div id="connection-indicator" class="connection-indicator">
+                            <i class="fas fa-wifi"></i>
+                            <span>Connecting...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Student Dashboard -->
+        <div id="student-dashboard" class="page-content active">
+            <div class="container">
+
+                <!-- Shortlisted Notification Banner -->
+                <div id="shortlisted-notification" class="notification-banner" style="display: none;">
+                    <div class="banner-content">
+                        <div class="banner-icon">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <div class="banner-text">
+                            <h3>🎉 New Shortlisted Candidates Available!</h3>
+                            <p>Check if you've been selected by companies for interviews</p>
+                        </div>
+                        <button onclick="viewShortlistedFromBanner()" class="banner-btn">
+                            <i class="fas fa-eye"></i>
+                            View Shortlisted
+                        </button>
+                        <button onclick="dismissBanner()" class="banner-close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Notifications Section -->
+                <div id="notifications-section" class="notifications-section animate-slide-up">
+                    <div class="notifications-header">
+                        <h3><i class="fas fa-bell"></i> Latest Updates</h3>
+                        <button onclick="markAllNotificationsRead()" class="mark-read-btn">
+                            <i class="fas fa-check-double"></i>
+                            Mark All Read
+                        </button>
+                    </div>
+                    <div id="notifications-list" class="notifications-list">
+                        <!-- Notifications will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Search and Filter Section -->
+                <div class="search-filter-section animate-slide-up">
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="job-search" placeholder="Search by company name" oninput="filterJobs()">
+                    </div>
+                    <div class="filter-dropdown">
+                        <select id="status-filter" onchange="filterJobs()">
+                            <option value="">All Status</option>
+                            <option value="Open">Open for Applications</option>
+                            <option value="Interviewing">Interview Phase</option>
+                            <option value="Closed">Application Closed</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Job Listings -->
+                <div id="job-listings" class="job-grid">
+                    <!-- Jobs will be dynamically loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Job Detail Modal -->
+        <div id="job-detail-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeJobDetail()">&times;</span>
+                <div id="job-detail-content">
+                    <!-- Job details will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Shortlisted View -->
+        <div id="shortlisted-view" class="page-content">
+            <div class="container">
+                <div class="dashboard-header">
+                    <h1 class="page-title animate-fade-in">Shortlisted Candidates</h1>
+                    <p class="page-subtitle animate-fade-in-delay">View shortlisted candidates for placements</p>
+                </div>
+
+                <!-- No Data Message -->
+                <div id="no-shortlisted-data" class="no-data-message animate-slide-up">
+                    <div class="no-data-card">
+                        <div class="no-data-icon">
+                            <i class="fas fa-clipboard-list"></i>
+                        </div>
+                        <h3>No Shortlisted Data Available</h3>
+                        <p>Shortlisted candidates data will appear here once uploaded by the admin.</p>
+                        <p class="no-data-hint">Check back later for updates!</p>
+                    </div>
+                </div>
+
+                <!-- Shortlisted Display Options -->
+                <div id="shortlisted-data-section" class="shortlisted-section" style="display: none;">
+                    <div class="section-header">
+                        <h2>Shortlisted Candidates</h2>
+                        <div class="shortlisted-actions">
+                            <button onclick="exportShortlistedData()" class="export-btn">
+                                <i class="fas fa-download"></i>
+                                Export All Data
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Search Section -->
+                    <div class="search-filter-section" style="margin-bottom: 2rem;">
+                        <div class="search-bar">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="shortlisted-search" placeholder="Search by company, or any field..." oninput="filterShortlistedCandidates()">
+                        </div>
+                    </div>
+
+                    <!-- Company View -->
+                    <div id="company-view" class="company-view">
+                        <div class="companies-header">
+                            <h3>Companies with Shortlisted Candidates</h3>
+                            <p>Click on any company to view their selected candidates</p>
+                        </div>
+                        <div id="companies-grid" class="companies-grid">
+                            <!-- Company cards will be loaded here -->
+                        </div>
+                    </div>
+
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Login -->
+        <div id="admin-login" class="page-content">
+            <div class="login-container">
+                <div class="login-card animate-scale-in">
+                    <div class="login-header">
+                        <i class="fas fa-shield-alt"></i>
+                        <h2>Admin Login</h2>
+                        <p>Access the Dayananda Sagar Institutions placement management panel</p>
+                    </div>
+                    <form id="admin-login-form" onsubmit="handleAdminLogin(event)">
+                        <div class="form-group">
+                            <label for="admin-username">Username</label>
+                            <input type="text" id="admin-username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="admin-password">Password</label>
+                            <input type="password" id="admin-password" required>
+                        </div>
+                        <button type="submit" class="login-btn">
+                            <span>Login</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Dashboard -->
+        <div id="admin-dashboard" class="page-content">
+            <div class="admin-container">
+                <div class="admin-header">
+                    <h1>Admin Dashboard</h1>
+                    <div class="admin-header-actions">
+                        <button onclick="logout()" class="logout-btn">
+                            <i class="fas fa-sign-out-alt"></i>
+                            Logout
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Job Management Section -->
+                <div class="management-section">
+                    <div class="section-header">
+                        <h2>Job Management</h2>
+                        <button onclick="showAddJobModal()" class="add-job-btn">
+                            <i class="fas fa-plus"></i>
+                            Add New Job
+                        </button>
+                    </div>
+                    <div id="admin-job-list" class="admin-job-grid">
+                        <!-- Admin job list will be loaded here -->
+                    </div>
+                </div>
+
+
+                <!-- Admin Management Section -->
+                <div class="management-section" style="margin-top: 2rem;">
+                    <div class="section-header">
+                        <h2>Admin Management</h2>
+                        <button onclick="showAddAdminModal()" class="add-job-btn">
+                            <i class="fas fa-user-plus"></i>
+                            Add New Admin
+                        </button>
+                    </div>
+                    
+                    <!-- Admin List -->
+                    <div class="admin-list-section">
+                        <h3>Current Admins</h3>
+                        <div id="admin-list" class="admin-list">
+                            <!-- Admin list will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notifications Management Section -->
+                <div class="management-section" style="margin-top: 2rem;">
+                    <div class="section-header">
+                        <h2>Notifications Management</h2>
+                        <button onclick="showAddNotificationModal()" class="add-job-btn">
+                            <i class="fas fa-bell"></i>
+                            Post New Notification
+                        </button>
+                    </div>
+                    
+                    <!-- Recent Notifications Preview -->
+                    <div class="notifications-preview">
+                        <div class="notifications-preview-header">
+                            <h3>Recent Notifications</h3>
+                            <button onclick="showAllNotificationsModal()" class="view-all-btn">
+                                <i class="fas fa-list"></i>
+                                View All Notifications
+                            </button>
+                        </div>
+                        <div id="admin-notifications-list" class="admin-notifications-list">
+                            <!-- Recent notifications will be shown here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add/Edit Job Modal -->
+        <div id="job-form-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeJobForm()">&times;</span>
+                <h2 id="job-form-title">Add New Job</h2>
+                <form id="job-form" onsubmit="handleJobSubmit(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="job-company">Company Name</label>
+                            <input type="text" id="job-company" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="job-title">Job Title</label>
+                            <input type="text" id="job-title" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="job-deadline">Application Deadline</label>
+                            <input type="datetime-local" id="job-deadline" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="job-status">Status</label>
+                            <select id="job-status" required>
+                                <option value="Open">Open</option>
+                                <option value="Interviewing">Interviewing</option>
+                                <option value="Closed">Closed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="job-description">Job Description</label>
+                        <textarea id="job-description" rows="4" required></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="job-salary">Salary Range</label>
+                            <input type="text" id="job-salary" placeholder="e.g., 3-5 LPA">
+                        </div>
+                        <div class="form-group">
+                            <label for="job-location">Location</label>
+                            <input type="text" id="job-location" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="job-eligibility">Eligibility Criteria</label>
+                        <textarea id="job-eligibility" rows="3" required></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="job-batches">Eligible Batches</label>
+                            <input type="text" id="job-batches" placeholder="e.g., 2024, 2023, 2022" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="job-branches">Eligible Branches</label>
+                            <input type="text" id="job-branches" placeholder="e.g., CSE, ECE, ME, CE" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="job-selection-process">Selection Process</label>
+                        <textarea id="job-selection-process" rows="4" placeholder="Describe the complete selection process for this position..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="job-form-link">Application Form Link</label>
+                        <input type="url" id="job-form-link" placeholder="https://forms.google.com/..." required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" onclick="closeJobForm()" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="submit-btn">Save Job</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Shortlisted Upload Modal for Admin -->
+        <div id="admin-shortlisted-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeAdminShortlistedModal()">&times;</span>
+                <h2>Upload Shortlisted Candidates</h2>
+                <div class="upload-section">
+                    <div id="admin-drop-zone" class="drop-zone" ondrop="handleAdminShortlistedDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Drag and drop your XLSX/CSV file here</p>
+                        <span>or</span>
+                        <button type="button" onclick="document.getElementById('admin-file-input').click()" class="upload-btn">Choose File</button>
+                        <input type="file" id="admin-file-input" accept=".xlsx,.csv" onchange="handleAdminShortlistedSelect(event)" style="display: none;">
+                    </div>
+                    <div id="admin-upload-progress" class="upload-progress" style="display: none;">
+                        <div class="progress-bar">
+                            <div id="admin-progress-fill" class="progress-fill"></div>
+                        </div>
+                        <span id="admin-progress-text">Uploading...</span>
+                    </div>
+                </div>
+                <div id="admin-data-viewer" class="data-viewer" style="display: none;">
+                    <h3>Preview Shortlisted Data</h3>
+                    <div class="table-container">
+                        <table id="admin-shortlisted-table">
+                            <thead id="admin-table-header"></thead>
+                            <tbody id="admin-table-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="modal-actions" style="margin-top: 1rem;">
+                        <button onclick="saveShortlistedData()" class="submit-btn">
+                            <i class="fas fa-save"></i>
+                            Save Shortlisted Data
+                        </button>
+                        <button onclick="closeAdminShortlistedModal()" class="cancel-btn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Company Shortlisted Modal -->
+        <div id="company-shortlisted-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeCompanyShortlistedModal()">&times;</span>
+                <div id="company-modal-header" class="company-modal-header">
+                    <div class="company-modal-icon" id="company-modal-icon">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <div class="company-modal-info">
+                        <h2 id="company-modal-name">Company Name</h2>
+                        <p id="company-modal-count">0 candidates shortlisted</p>
+                        <div id="company-modal-description" class="company-description">
+                            <!-- Company description will be added here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Search within company -->
+                <div class="company-search-section">
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="company-candidate-search" placeholder="Search for your name or any candidate..." oninput="filterCompanyCandidates()">
+                    </div>
+                    <div class="search-hint">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Tip: Search for your name to quickly find if you're shortlisted</span>
+                    </div>
+                </div>
+
+                <!-- Company candidates table -->
+                <div class="company-candidates-viewer">
+                    <div class="table-container">
+                        <table id="company-candidates-table">
+                            <thead id="company-candidates-header"></thead>
+                            <tbody id="company-candidates-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Job Shortlist Upload Modal -->
+        <div id="job-shortlist-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeJobShortlistModal()">&times;</span>
+                <div id="job-shortlist-header" class="job-shortlist-header">
+                    <div class="job-modal-icon">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div class="job-modal-info">
+                        <h2 id="job-shortlist-title">Upload Shortlisted Candidates</h2>
+                        <p id="job-shortlist-subtitle">Company • Position</p>
+                    </div>
+                </div>
+                
+                <div class="upload-section">
+                    <div id="job-shortlist-drop-zone" class="drop-zone" ondrop="handleJobShortlistDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Drag and drop your XLSX/CSV file here</p>
+                        <span>or</span>
+                        <button type="button" onclick="document.getElementById('job-shortlist-file-input').click()" class="upload-btn">Choose File</button>
+                        <input type="file" id="job-shortlist-file-input" accept=".xlsx,.csv" onchange="handleJobShortlistFileSelect(event)" style="display: none;">
+                    </div>
+                    <div id="job-shortlist-upload-progress" class="upload-progress" style="display: none;">
+                        <div class="progress-bar">
+                            <div id="job-shortlist-progress-fill" class="progress-fill"></div>
+                        </div>
+                        <span id="job-shortlist-progress-text">Uploading...</span>
+                    </div>
+                </div>
+                
+                <div id="job-shortlist-data-viewer" class="data-viewer" style="display: none;">
+                    <h3>Preview Shortlisted Candidates</h3>
+                    <div class="table-container">
+                        <table id="job-shortlist-table">
+                            <thead id="job-shortlist-table-header"></thead>
+                            <tbody id="job-shortlist-table-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="modal-actions" style="margin-top: 1rem;">
+                        <button onclick="saveJobShortlistData()" class="submit-btn">
+                            <i class="fas fa-save"></i>
+                            Save Shortlisted Data
+                        </button>
+                        <button onclick="closeJobShortlistModal()" class="cancel-btn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Job Shortlist View Modal -->
+        <div id="job-shortlist-view-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeJobShortlistViewModal()">&times;</span>
+                <div id="job-shortlist-view-header" class="job-shortlist-header">
+                    <div class="job-modal-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="job-modal-info">
+                        <h2 id="job-shortlist-view-title">Shortlisted Candidates</h2>
+                        <p id="job-shortlist-view-subtitle">Company • Position</p>
+                        <p id="job-shortlist-view-count">0 candidates shortlisted</p>
+                    </div>
+                </div>
+                
+                <!-- Search within job shortlist -->
+                <div class="company-search-section">
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="job-shortlist-search" placeholder="Search shortlisted candidates..." oninput="filterJobShortlistCandidates()">
+                    </div>
+                </div>
+
+                <!-- Job shortlist candidates table -->
+                <div class="company-candidates-viewer">
+                    <div class="table-container">
+                        <table id="job-shortlist-view-table">
+                            <thead id="job-shortlist-view-header-table"></thead>
+                            <tbody id="job-shortlist-view-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="modal-actions" style="margin-top: 1rem;">
+                    <button onclick="exportJobShortlistData()" class="export-btn">
+                        <i class="fas fa-download"></i>
+                        Export Data
+                    </button>
+                    <button onclick="viewFullCompanyList()" class="view-full-btn">
+                        <i class="fas fa-list"></i>
+                        View Full List
+                    </button>
+                    <button onclick="showJobShortlistUpload(AppState.currentJobId)" class="edit-btn">
+                        <i class="fas fa-edit"></i>
+                        Update List
+                    </button>
+                    <button onclick="deleteJobShortlistData()" class="delete-btn">
+                        <i class="fas fa-trash"></i>
+                        Delete List
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Admin Modal -->
+        <div id="add-admin-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeAddAdminModal()">&times;</span>
+                <h2>Add New Admin</h2>
+                <form id="admin-form" onsubmit="handleAdminSubmit(event)">
+                    <div class="form-group">
+                        <label for="new-admin-username">Username</label>
+                        <input type="text" id="new-admin-username" placeholder="Enter admin username..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-admin-password">Password</label>
+                        <input type="password" id="new-admin-password" placeholder="Enter admin password..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-admin-email">Email (Optional)</label>
+                        <input type="email" id="new-admin-email" placeholder="Enter admin email...">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" onclick="closeAddAdminModal()" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="submit-btn">Add Admin</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add Notification Modal -->
+        <div id="add-notification-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeAddNotificationModal()">&times;</span>
+                <h2>Post New Notification</h2>
+                <form id="notification-form" onsubmit="handleNotificationSubmit(event)">
+                    <div class="form-group">
+                        <label for="notification-type">Type</label>
+                        <select id="notification-type" required>
+                            <option value="info">Information</option>
+                            <option value="success">Success/Achievement</option>
+                            <option value="warning">Important Notice</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="notification-title">Title</label>
+                        <input type="text" id="notification-title" placeholder="Enter notification title..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="notification-message">Message</label>
+                        <textarea id="notification-message" rows="4" placeholder="Enter notification message..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="notification-action-enabled">
+                            Add Action Button
+                        </label>
+                    </div>
+                    <div id="notification-action-section" class="form-group" style="display: none;">
+                        <label for="notification-action-text">Action Button Text</label>
+                        <input type="text" id="notification-action-text" placeholder="e.g., View Details, Apply Now">
+                        <label for="notification-action-link">Action Button Link (Optional)</label>
+                        <input type="url" id="notification-action-link" placeholder="https://example.com/apply">
+                        <small class="form-help">Leave empty to use default action behavior</small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" onclick="closeAddNotificationModal()" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="submit-btn">Post Notification</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- All Notifications Management Modal -->
+        <div id="all-notifications-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeAllNotificationsModal()">&times;</span>
+                <h2>Manage Notifications</h2>
+                <div class="notifications-management">
+                    <div class="notifications-list-container">
+                        <div id="all-notifications-list" class="all-notifications-list">
+                            <!-- All notifications will be shown here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Notification Modal -->
+        <div id="edit-notification-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeEditNotificationModal()">&times;</span>
+                <h2>Edit Notification</h2>
+                <form id="edit-notification-form" onsubmit="handleEditNotificationSubmit(event)">
+                    <input type="hidden" id="edit-notification-id">
+                    <div class="form-group">
+                        <label for="edit-notification-type">Type</label>
+                        <select id="edit-notification-type" required>
+                            <option value="info">Information</option>
+                            <option value="success">Success/Achievement</option>
+                            <option value="warning">Important Notice</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-notification-title">Title</label>
+                        <input type="text" id="edit-notification-title" placeholder="Enter notification title..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-notification-message">Message</label>
+                        <textarea id="edit-notification-message" rows="4" placeholder="Enter notification message..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="edit-notification-action-enabled">
+                            Add Action Button
+                        </label>
+                    </div>
+                    <div id="edit-notification-action-section" class="form-group" style="display: none;">
+                        <label for="edit-notification-action-text">Action Button Text</label>
+                        <input type="text" id="edit-notification-action-text" placeholder="e.g., View Details, Apply Now">
+                        <label for="edit-notification-action-link">Action Button Link (Optional)</label>
+                        <input type="url" id="edit-notification-action-link" placeholder="https://example.com/apply">
+                        <small class="form-help">Leave empty to use default action behavior</small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" onclick="closeEditNotificationModal()" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="submit-btn">Update Notification</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Full Company List Modal -->
+        <div id="full-company-list-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeFullCompanyListModal()">&times;</span>
+                <div class="company-modal-header">
+                    <div class="company-modal-icon">
+                        <i class="fas fa-list"></i>
+                    </div>
+                    <div class="company-modal-info">
+                        <h2 id="full-list-company-name">Company Name</h2>
+                        <p>Complete list of shortlisted candidates</p>
+                    </div>
+                </div>
+                
+                <!-- Search and Export for Full List -->
+                <div class="company-search-section">
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="full-list-search" placeholder="Search candidates..." oninput="filterFullCompanyList()">
+                    </div>
+                    <button onclick="exportFullCompanyList()" class="export-btn" style="margin-left: 1rem;">
+                        <i class="fas fa-download"></i>
+                        Export
+                    </button>
+                </div>
+
+                <!-- Full List Table -->
+                <div class="company-candidates-viewer">
+                    <div class="table-container">
+                        <table id="full-company-list-table">
+                            <thead id="full-company-list-header"></thead>
+                            <tbody id="full-company-list-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Upload Modal -->
+        <div id="file-upload-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeFileUpload()">&times;</span>
+                <h2>Upload Applicant Data</h2>
+                <div class="upload-section">
+                    <div id="drop-zone" class="drop-zone" ondrop="handleFileDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Drag and drop your XLSX/CSV file here</p>
+                        <span>or</span>
+                        <button type="button" onclick="document.getElementById('file-input').click()" class="upload-btn">Choose File</button>
+                        <input type="file" id="file-input" accept=".xlsx,.csv" onchange="handleFileSelect(event)" style="display: none;">
+                    </div>
+                    <div id="upload-progress" class="upload-progress" style="display: none;">
+                        <div class="progress-bar">
+                            <div id="progress-fill" class="progress-fill"></div>
+                        </div>
+                        <span id="progress-text">Uploading...</span>
+                    </div>
+                </div>
+                <div id="data-viewer" class="data-viewer" style="display: none;">
+                    <h3>Applicant Data</h3>
+                    <div class="table-container">
+                        <table id="applicant-table">
+                            <thead id="table-header"></thead>
+                            <tbody id="table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
