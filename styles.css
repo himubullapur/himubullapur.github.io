@@ -890,25 +890,7 @@ body {
     box-shadow: 0 4px 12px var(--shadow-medium);
 }
 
-.test-notification-btn {
-    background: var(--gradient-primary);
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.test-notification-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px var(--shadow-medium);
-    background: var(--gradient-secondary);
-}
+/* Nuclear clear button removed - task completed */
 
 /* Stats Grid */
 .stats-grid {
