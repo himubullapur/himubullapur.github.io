@@ -999,6 +999,9 @@ function handleJobSubmit(event) {
             }
         });
         
+        // Send push notification to all users
+        sendNewJobNotification(jobData.title, jobData.company);
+        
         showNotification('Job added successfully!', 'success');
     }
     
@@ -3591,6 +3594,9 @@ async function initializePWA() {
         // For other platforms, request permission automatically
         requestNotificationPermission();
     }
+    
+    // Set up immediate notification testing
+    setupImmediateNotifications();
 }
 
 // Register Service Worker
@@ -3774,6 +3780,9 @@ async function sendSubscriptionToServer(subscription) {
         // For now, we'll store it locally and use it for local notifications
         console.log('Subscription ready for server:', subscription);
         
+        // Set up real-time notification listener
+        setupRealtimeNotifications();
+        
         // You can implement this to send to your Firebase or other backend
         // await fetch('/api/subscribe', {
         //     method: 'POST',
@@ -3783,6 +3792,176 @@ async function sendSubscriptionToServer(subscription) {
         
     } catch (error) {
         console.error('Error sending subscription to server:', error);
+    }
+}
+
+// Set up real-time notifications
+function setupRealtimeNotifications() {
+    // Listen for messages from service worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', event => {
+            if (event.data && event.data.type === 'NOTIFICATION') {
+                handleRealtimeNotification(event.data);
+            }
+        });
+    }
+    
+    // Set up periodic notification checks
+    setInterval(checkForNewNotifications, 30000); // Check every 30 seconds
+    
+    // Set up visibility change listener for immediate notifications
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            checkForNewNotifications();
+        }
+    });
+}
+
+// Handle real-time notifications
+function handleRealtimeNotification(data) {
+    console.log('Real-time notification received:', data);
+    
+    if (data.action === 'NEW_JOB') {
+        sendJobNotification(data.jobTitle, data.companyName);
+    } else if (data.action === 'DEADLINE_REMINDER') {
+        sendDeadlineReminder(data.jobTitle, data.deadline);
+    } else if (data.action === 'TEST_NOTIFICATION') {
+        sendTestNotification();
+    }
+}
+
+// Check for new notifications
+async function checkForNewNotifications() {
+    try {
+        // Check if there are new jobs or updates
+        const lastCheck = localStorage.getItem('lastNotificationCheck') || 0;
+        const currentTime = Date.now();
+        
+        // Simulate checking for new content (replace with your actual API call)
+        const hasNewContent = await checkForNewContent(lastCheck);
+        
+        if (hasNewContent) {
+            // Send notification about new content
+            if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.ready;
+                registration.showNotification('🆕 DSI Placement Portal', {
+                    body: 'New job opportunities are available! Check them out now.',
+                    icon: './DSi.png',
+                    badge: './DSi.png',
+                    tag: 'new-jobs',
+                    requireInteraction: true,
+                    silent: false,
+                    vibrate: [200, 100, 200],
+                    data: {
+                        url: './',
+                        timestamp: Date.now(),
+                        type: 'new-jobs'
+                    }
+                });
+            }
+        }
+        
+        // Update last check time
+        localStorage.setItem('lastNotificationCheck', currentTime.toString());
+        
+    } catch (error) {
+        console.error('Error checking for notifications:', error);
+    }
+}
+
+// Check for new content (simulate API call)
+async function checkForNewContent(lastCheck) {
+    // This is a simulation - replace with your actual API call
+    // For now, we'll randomly return true to demonstrate notifications
+    const random = Math.random();
+    return random > 0.8; // 20% chance of new content
+}
+
+// Set up immediate notifications for testing
+function setupImmediateNotifications() {
+    // Check if notifications are enabled and send a welcome notification
+    if (Notification.permission === 'granted') {
+        setTimeout(() => {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(registration => {
+                    registration.showNotification('🎉 Welcome to DSI Placement Portal!', {
+                        body: 'You will now receive notifications about new job opportunities and updates.',
+                        icon: './DSi.png',
+                        badge: './DSi.png',
+                        tag: 'welcome-notification',
+                        requireInteraction: true,
+                        silent: false,
+                        vibrate: [200, 100, 200],
+                        data: {
+                            url: './',
+                            timestamp: Date.now(),
+                            type: 'welcome'
+                        },
+                        actions: [
+                            {
+                                action: 'view',
+                                title: 'View Jobs',
+                                icon: './DSi.png'
+                            },
+                            {
+                                action: 'dismiss',
+                                title: 'Dismiss'
+                            }
+                        ]
+                    });
+                });
+            }
+        }, 2000); // Wait 2 seconds after page load
+    }
+    
+    // Set up periodic notifications every 2 minutes for testing
+    setInterval(() => {
+        if (Notification.permission === 'granted') {
+            sendPeriodicNotification();
+        }
+    }, 120000); // Every 2 minutes
+}
+
+// Send periodic notification for testing
+function sendPeriodicNotification() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(registration => {
+            const messages = [
+                'New job opportunities are available! Check them out now.',
+                'Don\'t miss out on the latest job openings!',
+                'Your dream job might be waiting for you!',
+                'Check out the newest job postings!',
+                'Stay updated with the latest opportunities!'
+            ];
+            
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            
+            registration.showNotification('🔔 DSI Placement Portal', {
+                body: randomMessage,
+                icon: './DSi.png',
+                badge: './DSi.png',
+                tag: 'periodic-notification',
+                requireInteraction: true,
+                silent: false,
+                vibrate: [200, 100, 200],
+                data: {
+                    url: './',
+                    timestamp: Date.now(),
+                    type: 'periodic'
+                },
+                actions: [
+                    {
+                        action: 'view',
+                        title: 'View Jobs',
+                        icon: './DSi.png'
+                    },
+                    {
+                        action: 'dismiss',
+                        title: 'Dismiss'
+                    }
+                ]
+            });
+        });
     }
 }
 
@@ -3897,6 +4076,41 @@ function sendTestNotification() {
 }
 
 // Send job notification
+// Send new job notification to all users
+function sendNewJobNotification(jobTitle, companyName) {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(registration => {
+            registration.showNotification('🎯 New Job Opportunity!', {
+                body: `${companyName} is hiring for ${jobTitle} position. Apply now!`,
+                icon: './DSi.png',
+                badge: './DSi.png',
+                tag: 'new-job-notification',
+                requireInteraction: true,
+                silent: false,
+                vibrate: [200, 100, 200],
+                data: {
+                    url: './',
+                    timestamp: Date.now(),
+                    type: 'new-job',
+                    jobTitle: jobTitle,
+                    companyName: companyName
+                },
+                actions: [
+                    {
+                        action: 'view',
+                        title: 'View Job',
+                        icon: './DSi.png'
+                    },
+                    {
+                        action: 'dismiss',
+                        title: 'Dismiss'
+                    }
+                ]
+            });
+        });
+    }
+}
+
 function sendJobNotification(jobTitle, companyName) {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then(registration => {
