@@ -3581,18 +3581,23 @@ async function initializePWA() {
     // Set up online/offline detection
     setupOnlineDetection();
     
-    // Request notification permission
-    requestNotificationPermission();
+    // Check if we're on iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     
-    // Set up push notifications
-    setupPushNotifications();
+    if (isIOS) {
+        // For iOS, show notification setup button
+        showIOSNotificationSetup();
+    } else {
+        // For other platforms, request permission automatically
+        requestNotificationPermission();
+    }
 }
 
 // Register Service Worker
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
-            const registration = await navigator.serviceWorker.register('/sw.js');
+            const registration = await navigator.serviceWorker.register('./sw.js');
             console.log('Service Worker registered successfully:', registration);
             PWAState.registration = registration;
             
@@ -3703,13 +3708,31 @@ function setupOnlineDetection() {
 
 // Request notification permission
 async function requestNotificationPermission() {
-    if ('Notification' in window && Notification.permission === 'default') {
+    if ('Notification' in window) {
         try {
-            const permission = await Notification.requestPermission();
-            console.log('Notification permission:', permission);
+            // For iOS, we need to request permission immediately
+            if (Notification.permission === 'default') {
+                const permission = await Notification.requestPermission();
+                console.log('Notification permission:', permission);
+                
+                if (permission === 'granted') {
+                    showNotification('✅ Notifications enabled! You will receive job updates.', 'success');
+                    // Set up push notifications after permission is granted
+                    await setupPushNotifications();
+                } else if (permission === 'denied') {
+                    showNotification('❌ Notifications blocked. Please enable them in Settings > Safari > Notifications.', 'warning');
+                }
+            } else if (Notification.permission === 'granted') {
+                console.log('Notifications already enabled');
+                await setupPushNotifications();
+            } else {
+                showNotification('🔔 Notifications are blocked. Enable them in Settings > Safari > Notifications.', 'warning');
+            }
         } catch (error) {
             console.error('Error requesting notification permission:', error);
         }
+    } else {
+        showNotification('❌ This browser does not support notifications.', 'error');
     }
 }
 
@@ -3825,25 +3848,36 @@ function hideUpdateBanner() {
 
 // Send push notification (for testing)
 function sendTestNotification() {
+    // Check if notifications are supported and permitted
+    if (!('Notification' in window)) {
+        showNotification('❌ This browser does not support notifications.', 'error');
+        return;
+    }
+    
+    if (Notification.permission !== 'granted') {
+        showNotification('❌ Notifications are not enabled. Please enable them first.', 'warning');
+        return;
+    }
+    
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then(registration => {
             registration.showNotification('🎉 DSI Placement Portal', {
                 body: 'New job opportunity available! Check out the latest openings.',
-                icon: '/DSi.png',
-                badge: '/DSi.png',
+                icon: './DSi.png',
+                badge: './DSi.png',
                 tag: 'job-notification',
                 requireInteraction: true,
                 silent: false,
                 vibrate: [200, 100, 200],
                 data: {
-                    url: '/',
+                    url: './',
                     timestamp: Date.now()
                 },
                 actions: [
                     {
                         action: 'view',
                         title: 'View Jobs',
-                        icon: '/DSi.png'
+                        icon: './DSi.png'
                     },
                     {
                         action: 'dismiss',
@@ -3851,7 +3885,14 @@ function sendTestNotification() {
                     }
                 ]
             });
+            
+            showNotification('✅ Test notification sent! Check your notification center.', 'success');
+        }).catch(error => {
+            console.error('Error sending notification:', error);
+            showNotification('❌ Error sending notification. Please try again.', 'error');
         });
+    } else {
+        showNotification('❌ Service worker not available. Please refresh the page.', 'error');
     }
 }
 
@@ -3861,14 +3902,14 @@ function sendJobNotification(jobTitle, companyName) {
         navigator.serviceWorker.ready.then(registration => {
             registration.showNotification('🚀 New Job Posted!', {
                 body: `${jobTitle} at ${companyName} - Apply now!`,
-                icon: '/DSi.png',
-                badge: '/DSi.png',
+                icon: './DSi.png',
+                badge: './DSi.png',
                 tag: 'new-job',
                 requireInteraction: true,
                 silent: false,
                 vibrate: [200, 100, 200],
                 data: {
-                    url: '/',
+                    url: './',
                     jobTitle: jobTitle,
                     company: companyName,
                     timestamp: Date.now()
@@ -3877,12 +3918,12 @@ function sendJobNotification(jobTitle, companyName) {
                     {
                         action: 'apply',
                         title: 'Apply Now',
-                        icon: '/DSi.png'
+                        icon: './DSi.png'
                     },
                     {
                         action: 'view',
                         title: 'View Details',
-                        icon: '/DSi.png'
+                        icon: './DSi.png'
                     }
                 ]
             });
@@ -3896,14 +3937,14 @@ function sendDeadlineReminder(jobTitle, deadline) {
         navigator.serviceWorker.ready.then(registration => {
             registration.showNotification('⏰ Application Deadline Soon!', {
                 body: `${jobTitle} - Deadline: ${deadline}`,
-                icon: '/DSi.png',
-                badge: '/DSi.png',
+                icon: './DSi.png',
+                badge: './DSi.png',
                 tag: 'deadline-reminder',
                 requireInteraction: true,
                 silent: false,
                 vibrate: [300, 100, 300],
                 data: {
-                    url: '/',
+                    url: './',
                     jobTitle: jobTitle,
                     deadline: deadline,
                     timestamp: Date.now()
@@ -3912,11 +3953,84 @@ function sendDeadlineReminder(jobTitle, deadline) {
                     {
                         action: 'apply',
                         title: 'Apply Now',
-                        icon: '/DSi.png'
+                        icon: './DSi.png'
                     }
                 ]
             });
         });
+    }
+}
+
+// Show iOS notification setup
+function showIOSNotificationSetup() {
+    const permission = Notification.permission;
+    
+    if (permission === 'default') {
+        // Show notification setup banner for iOS
+        const iosBanner = document.createElement('div');
+        iosBanner.id = 'ios-notification-banner';
+        iosBanner.className = 'ios-notification-banner';
+        iosBanner.innerHTML = `
+            <div class="ios-banner-content">
+                <div class="ios-banner-icon">
+                    <i class="fas fa-bell"></i>
+                </div>
+                <div class="ios-banner-text">
+                    <h4>Enable Notifications</h4>
+                    <p>Get instant job updates and alerts</p>
+                </div>
+                <div class="ios-banner-actions">
+                    <button onclick="enableIOSNotifications()" class="ios-enable-btn">
+                        <i class="fas fa-bell"></i>
+                        Enable
+                    </button>
+                    <button onclick="hideIOSBanner()" class="ios-dismiss">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(iosBanner);
+        
+        // Auto-hide after 15 seconds
+        setTimeout(() => {
+            if (document.getElementById('ios-notification-banner')) {
+                hideIOSBanner();
+            }
+        }, 15000);
+    } else if (permission === 'granted') {
+        showNotification('✅ Notifications enabled! You will receive job updates.', 'success');
+        setupPushNotifications();
+    } else {
+        showNotification('❌ Notifications blocked. Enable them in Settings > Safari > Notifications.', 'warning');
+    }
+}
+
+// Enable iOS notifications
+async function enableIOSNotifications() {
+    try {
+        const permission = await Notification.requestPermission();
+        
+        if (permission === 'granted') {
+            showNotification('✅ Notifications enabled! You will receive job updates.', 'success');
+            await setupPushNotifications();
+            hideIOSBanner();
+        } else if (permission === 'denied') {
+            showNotification('❌ Notifications blocked. Please enable them in Settings > Safari > Notifications.', 'warning');
+            hideIOSBanner();
+        }
+    } catch (error) {
+        console.error('Error enabling notifications:', error);
+        showNotification('❌ Error enabling notifications. Please try again.', 'error');
+    }
+}
+
+// Hide iOS banner
+function hideIOSBanner() {
+    const banner = document.getElementById('ios-notification-banner');
+    if (banner) {
+        banner.remove();
     }
 }
 
